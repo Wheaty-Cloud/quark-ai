@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Quark</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Ajout d'une animation simple pour l'apparition des messages */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-message {
+            animation: fadeIn 0.3s ease-out;
+        }
+        /* Style pour la barre de défilement */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827; /* bg-gray-900 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #6366f1; /* bg-indigo-500 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f46e5; /* bg-indigo-600 */
+        }
+        /* Styles pour la zone de texte auto-redimensionnable */
+        #chat-input {
+            resize: none;
+            overflow-y: hidden;
+            max-height: 200px; /* Limite la hauteur maximale */
+            scrollbar-width: none; /* Firefox */
+        }
+        #chat-input::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, et Opera */
+        }
+        /* Style spécifique pour les blocs de code */
+        .code-block-wrapper {
+            background-color: #1f2937; /* bg-gray-800 */
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #374151; /* border-gray-700 */
+        }
+        .code-block-header span {
+            font-size: 0.8em;
+            color: #9ca3af; /* text-gray-400 */
+            text-transform: uppercase;
+        }
+        .execute-button {
+             background-color: #374151; /* bg-gray-700 */
+             color: #d1d5db; /* text-gray-300 */
+             border: none;
+             padding: 4px 10px;
+             border-radius: 6px;
+             cursor: pointer;
+             font-size: 0.8em;
+             display: inline-flex;
+             align-items: center;
+             gap: 4px;
+             transition: background-color 0.2s;
+        }
+        .execute-button:hover {
+            background-color: #4b5563; /* bg-gray-600 */
+        }
+        .code-block {
+            padding: 12px;
+            overflow-x: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        .execution-output {
+            background-color: #111827; /* bg-gray-900 */
+            border-top: 1px solid #374151; /* border-gray-700 */
+            padding: 10px 12px;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #e5e7eb; /* text-gray-200 */
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+         .execution-output .error {
+            color: #fca5a5; /* text-red-400 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="flex h-screen">
+        <div class="w-64 bg-gray-800 p-4 flex-col justify-between hidden sm:flex shadow-2xl">
+            <div class="overflow-y-auto">
+                <div class="flex items-center mb-8">
+                    <span class="material-icons text-3xl text-indigo-400 mr-2">smart_toy</span>
+                    <h1 class="text-2xl font-bold">Quark</h1>
+                </div>
+                <button id="new-chat-button" class="w-full bg-indigo-500 text-white font-semibold py-2 px-4 rounded-xl flex items-center justify-center mb-6 hover:bg-indigo-600 transition-colors shadow-lg hover:shadow-xl">
+                    <span class="material-icons mr-2">add</span>
+                    Nouveau chat
+                </button>
+                
+                <h2 class="text-xs font-semibold uppercase text-gray-400 mb-2">Quarks:</h2>
+                <nav class="space-y-2" id="quark-profiles"></nav>
+                
+                <h2 class="text-xs font-semibold uppercase text-gray-400 mt-4 mb-2">Chats:</h2>
+                <nav class="space-y-2" id="chat-list">
+                    </nav>
+            </div>
+            
+            <div>
+                <div class="border-t border-gray-700 my-4"></div>
+                <div class="flex items-center p-2 cursor-pointer hover:bg-gray-700 rounded-lg">
+                    <div class="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center mr-3">
+                        <span class="material-icons text-gray-300">person</span>
+                    </div>
+                    <div>
+                        <p class="font-medium">Utilisateur</p>
+                        <span class="text-sm text-gray-400">Plan gratuit</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col">
+            <main class="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto" id="chat-container">
+                <div id="welcome-message" class="text-center my-auto">
+                    <h2 class="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500 mb-4">Bonjour !</h2>
+                    <p class="text-gray-400 text-lg">Comment puis-je vous aider aujourd'hui ?</p>
+                </div>
+                </main>
+
+            <footer class="p-4 md:p-6 bg-gray-900 border-t border-gray-800 shadow-inner">
+                <div class="w-full max-w-3xl mx-auto relative">
+                    <form id="chat-form">
+                        <textarea id="chat-input" class="w-full bg-gray-800 border border-gray-700 rounded-3xl py-3 pl-6 pr-16 text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-md" placeholder="Posez une question à Quark" rows="1"></textarea>
+                        <button type="submit" class="absolute right-3 bottom-3 bg-indigo-500 p-3 rounded-full hover:bg-indigo-600 transition-colors disabled:bg-indigo-900 disabled:cursor-not-allowed shadow-lg">
+                            <span class="material-icons text-white">arrow_upward</span>
+                        </button>
+                    </form>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+<div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 transition-opacity duration-300 hidden">
+    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-transform duration-300 scale-95">
+        <p id="modal-message" class="text-white text-lg mb-6"></p>
+        <div class="flex justify-end space-x-3">
+            <button id="modal-cancel" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">Annuler</button>
+            <button id="modal-confirm" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors">Supprimer</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Configuration ---
+    const OLLAMA_SERVER_IP = "194.164.204.5"; 
+    const OLLAMA_MODEL = "gemma3:1b"; 
+    
+    // Définition des différents profils/rôles de Quark
+    const QUARK_PROFILES = [
+        {
+            name: "Général",
+            icon: "settings_suggest",
+            color: "text-gray-400", 
+            prompt: "Tu es une intelligence artificielle nommée Quark, développée par Shaun. C'est ton identité la plus importante et tu dois la mentionner au début de chaque réponse. Réponds aux requêtes de manière informative, neutre et professionnelle. Tu ne dois pas adopter de persona spécifique.",
+            id: "general"
+        },
+        {
+            name: "Ami",
+            icon: "sentiment_very_satisfied",
+            color: "text-emerald-400", 
+            prompt: "Tu es l'IA amicale nommée Quark, développée par Shaun. C'est ton identité la plus importante et tu dois la mentionner au début de chaque réponse. Ton ton doit être chaleureux, décontracté et légèrement empathique. Utilise des contractions (ex: 'c'est', 'j'ai') et un langage naturel. Agis comme un ami.",
+            id: "friend"
+        },
+        {
+            name: "Programmeur",
+            icon: "code",
+            color: "text-cyan-400", 
+            // MODIFICATION: Ajout d'une instruction pour l'exécution du code
+            prompt: "Tu es l'IA nommée Quark, développée par Shaun. C'est ton identité la plus importante et tu dois la mentionner au début de chaque réponse. Ton rôle est d'agir comme un expert en programmation. Fournis des solutions de code concises et efficaces. Privilégie le JavaScript exécutable lorsque c'est pertinent, car l'utilisateur peut exécuter ce code directement dans l'interface. Encadre toujours le code dans un bloc de code formaté.",
+            id: "programmer"
+        },
+        {
+            name: "Écrivain",
+            icon: "edit",
+            color: "text-amber-400", 
+            prompt: "Tu es l'IA nommée Quark, développée par Shaun. C'est ton identité la plus importante et tu dois la mentionner au début de chaque réponse. Ton rôle est d'agir comme un rédacteur créatif et un critique littéraire. Ton ton est éloquent, imaginatif et encourageant. Concentre-toi sur la qualité du texte, la grammaire et le style.",
+            id: "writer"
+        }
+    ];
+
+    let chats = [];
+    let activeChatId = null;
+
+    // --- DOM Elements ---
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatContainer = document.getElementById('chat-container');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const submitButton = chatForm.querySelector('button');
+    const quarkProfilesContainer = document.getElementById('quark-profiles');
+    const newChatButton = document.getElementById('new-chat-button');
+    const chatListContainer = document.getElementById('chat-list'); 
+    
+    // --- Fonctions utilitaires ---
+    function getActiveChat() {
+        return chats.find(c => c.id === activeChatId);
+    }
+    
+    function getProfileById(id) {
+        return QUARK_PROFILES.find(p => p.id === id) || QUARK_PROFILES[0];
+    }
+    
+    // --- Fonctions de persistence (localStorage) ---
+    function loadChatsFromLocalStorage() {
+        try {
+            const storedChats = localStorage.getItem('quark_chats');
+            const storedActiveId = localStorage.getItem('quark_active_chat_id');
+
+            if (storedChats) {
+                const loadedChats = JSON.parse(storedChats);
+                loadedChats.forEach(chat => {
+                    chat.messages = chat.messages.map(msg => ({
+                        sender: msg.sender,
+                        text: msg.text,
+                        role: msg.sender === 'user' ? 'user' : 'assistant'
+                    }));
+                });
+                chats = loadedChats;
+            }
+
+            if (chats.length === 0) {
+                createNewChat(true); 
+            } else if (storedActiveId && chats.some(c => c.id === storedActiveId)) {
+                activeChatId = storedActiveId;
+            } else {
+                activeChatId = chats[0].id;
+            }
+        } catch (e) {
+            console.error("Erreur lors du chargement des chats:", e);
+            chats = [];
+            createNewChat(true);
+        }
+        loadChat(activeChatId);
+    }
+
+    function saveChatsToLocalStorage() {
+        localStorage.setItem('quark_chats', JSON.stringify(chats));
+        localStorage.setItem('quark_active_chat_id', activeChatId);
+    }
+
+    // --- Fonctions de gestion des chats ---
+    function createNewChat(isInitial = false) {
+        const defaultProfile = QUARK_PROFILES[0];
+        const newChat = {
+            id: crypto.randomUUID(),
+            title: isInitial ? "Chat Initial" : "Nouveau Chat",
+            profileId: defaultProfile.id,
+            messages: []
+        };
+        chats.unshift(newChat); 
+        loadChat(newChat.id); 
+        saveChatsToLocalStorage();
+    }
+
+    function deleteChat(chatIdToDelete) {
+        if (chats.length === 1) {
+            const chat = getActiveChat();
+            if (chat.id === chatIdToDelete) {
+                chat.title = "Nouveau Chat";
+                chat.messages = [];
+                loadChat(chat.id);
+                saveChatsToLocalStorage();
+                return;
+            }
+        }
+        
+        const indexToDelete = chats.findIndex(c => c.id === chatIdToDelete);
+        if (indexToDelete === -1) return;
+
+        chats.splice(indexToDelete, 1); 
+
+        if (chatIdToDelete === activeChatId) {
+            activeChatId = chats.length > 0 ? chats[0].id : null;
+            if (activeChatId) {
+                loadChat(activeChatId);
+            } else {
+                createNewChat(true);
+            }
+        } else {
+            renderChatList();
+            saveChatsToLocalStorage();
+        }
+    }
+
+    function loadChat(chatId) {
+        activeChatId = chatId;
+        const chat = getActiveChat();
+        if (!chat) return;
+
+        const welcome = document.getElementById('welcome-message');
+        chatContainer.innerHTML = ''; 
+        chatContainer.appendChild(welcome); 
+
+        const profile = getProfileById(chat.profileId); 
+        
+        if (chat.messages.length === 0) {
+            welcome.style.display = 'block';
+        } else {
+            welcome.style.display = 'none';
+            chat.messages.forEach(msg => {
+                appendMessage(msg.text, msg.sender, false, false, false); 
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight; 
+        }
+
+        renderChatList();
+        renderQuarkProfiles(); 
+        
+        const welcomeText = welcome.querySelector('p');
+        if (welcomeText) {
+            welcomeText.innerHTML = `Quark est maintenant en mode <strong>${profile.name}</strong>. Comment puis-je vous aider aujourd'hui ?`;
+        }
+        
+        chatInput.focus();
+        saveChatsToLocalStorage(); 
+    }
+
+    // --- Fonctions de l'interface utilisateur ---
+    function renderQuarkProfiles() {
+        const activeChat = getActiveChat();
+        if (!activeChat) return;
+        const currentProfileId = activeChat.profileId;
+
+        quarkProfilesContainer.innerHTML = ''; 
+        QUARK_PROFILES.forEach(profile => {
+            const isSelected = profile.id === currentProfileId;
+            const profileElement = document.createElement('a');
+            profileElement.href = "#";
+            profileElement.className = `flex items-center p-2 text-gray-300 rounded-xl transition-all cursor-pointer ${isSelected ? 'bg-indigo-500 hover:bg-indigo-600' : 'hover:bg-gray-700'}`;
+            profileElement.setAttribute('data-profile-id', profile.id);
+            
+            const iconColorClass = isSelected ? 'text-white' : profile.color;
+
+            profileElement.innerHTML = `
+                <span class="material-icons mr-3 ${iconColorClass}">${profile.icon}</span>
+                <p class="font-medium">${profile.name}</p>
+            `;
+            profileElement.addEventListener('click', (e) => {
+                e.preventDefault();
+                setActiveProfile(profile.id);
+            });
+            quarkProfilesContainer.appendChild(profileElement);
+        });
+    }
+
+    function setActiveProfile(profileId) {
+        const chat = getActiveChat();
+        if (!chat) return;
+
+        const newProfile = getProfileById(profileId);
+        if (newProfile) {
+            chat.profileId = newProfile.id; 
+            renderChatList(); 
+            renderQuarkProfiles(); 
+            
+            const welcome = document.getElementById('welcome-message');
+            const welcomeText = welcome.querySelector('p');
+            if (welcomeText) {
+                const profile = getProfileById(profileId);
+                welcomeText.innerHTML = `Quark est maintenant en mode <strong>${profile.name}</strong>. Comment puis-je vous aider aujourd'hui ?`;
+            }
+            saveChatsToLocalStorage();
+        }
+    }
+
+    function showConfirmationModal(message, onConfirm) {
+        let modal = document.getElementById('confirmation-modal');
+        if (!modal) return; 
+
+        document.getElementById('modal-message').textContent = message;
+        
+        const confirmBtn = document.getElementById('modal-confirm');
+        const cancelBtn = document.getElementById('modal-cancel');
+
+        confirmBtn.onclick = onConfirm;
+        cancelBtn.onclick = hideConfirmationModal;
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.querySelector('div').classList.remove('scale-95');
+        }, 10);
+    }
+
+    function hideConfirmationModal() {
+        const modal = document.getElementById('confirmation-modal');
+        if (modal) {
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+    }
+
+    function renderChatList() {
+        chatListContainer.innerHTML = '';
+        if (chats.length === 0) return;
+
+        chats.forEach(chat => {
+            const profile = getProfileById(chat.profileId); 
+            const isSelected = chat.id === activeChatId;
+            const chatElement = document.createElement('div');
+            chatElement.className = `group flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer relative ${isSelected ? 'bg-indigo-500 hover:bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`;
+            chatElement.setAttribute('data-chat-id', chat.id);
+            
+            const chatLink = document.createElement('a');
+            chatLink.href = "#";
+            chatLink.className = 'flex items-center flex-1 min-w-0 pr-1'; 
+            chatLink.innerHTML = `
+                <span class="material-icons mr-3 text-lg ${isSelected ? 'text-white' : profile.color}">${profile.icon}</span>
+                <div class="truncate min-w-0">
+                    <p class="font-semibold truncate">${chat.title || 'Nouveau Chat'}</p>
+                    <p class="text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-400'}">Quark (${profile.name})</p>
+                </div>
+            `;
+            chatLink.addEventListener('click', (e) => { e.preventDefault(); loadChat(chat.id); });
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = `self-center p-1 rounded-full text-red-400 hover:text-red-300 transition-opacity ml-2 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${chats.length === 1 && chat.id === activeChatId ? 'hidden' : ''}`;
+            deleteButton.innerHTML = `<span class="material-icons text-base">delete</span>`;
+            deleteButton.title = `Supprimer le chat: ${chat.title}`;
+            deleteButton.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                showConfirmationModal(`Êtes-vous sûr de vouloir supprimer le chat "${chat.title}" ?`, () => {
+                    deleteChat(chat.id);
+                    hideConfirmationModal();
+                });
+            });
+
+            chatElement.appendChild(chatLink);
+            if (chats.length > 1 || chat.id !== activeChatId) {
+                 chatElement.appendChild(deleteButton);
+            }
+            chatListContainer.appendChild(chatElement);
+        });
+    }
+
+    // --- Event Listeners ---
+    chatForm.addEventListener('submit', handleSendMessage);
+    chatInput.addEventListener('input', autoResizeTextarea);
+    chatInput.addEventListener('keydown', handleTextareaKeydown);
+    newChatButton.addEventListener('click', () => createNewChat(false));
+
+    function autoResizeTextarea() {
+        chatInput.style.height = 'auto';
+        chatInput.style.height = `${chatInput.scrollHeight}px`;
+    }
+
+    function handleTextareaKeydown(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            handleSendMessage(event);
+        }
+    }
+
+    async function handleSendMessage(event) {
+        event.preventDefault();
+        const userInput = chatInput.value.trim();
+        if (!userInput) return;
+        
+        const chat = getActiveChat();
+        if (!chat) { console.error("Aucun chat actif trouvé."); return; }
+
+        if (welcomeMessage) welcomeMessage.style.display = 'none';
+        
+        const userMessage = { sender: 'user', text: userInput, role: 'user' };
+        chat.messages.push(userMessage);
+        appendMessage(userInput, 'user');
+        
+        if (chat.title === "Nouveau Chat" || chat.title === "Chat Initial") {
+             chat.title = userInput.substring(0, 30) + (userInput.length > 30 ? '...' : '');
+             renderChatList(); 
+        }
+        
+        chatInput.value = '';
+        autoResizeTextarea(); 
+        submitButton.disabled = true;
+
+        const typingIndicator = appendMessage('', 'bot', true);
+        
+        const profile = getProfileById(chat.profileId);
+        const systemPrompt = profile.prompt; 
+        
+        const ollamaMessages = [
+            { role: "system", content: systemPrompt },
+            ...chat.messages.map(msg => ({ role: msg.role, content: msg.text }))
+        ];
+
+        const requestBody = {
+             model: OLLAMA_MODEL,
+             messages: ollamaMessages,
+             stream: false
+        };
+        
+        try {
+            const response = await fetch(`http://${OLLAMA_SERVER_IP}:11434/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) throw new Error(`Modèle non trouvé (404). Vérifiez que "${OLLAMA_MODEL}" est bien installé.`);
+                throw new Error(`Erreur réseau: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const aiResponse = data.message.content;
+
+            typingIndicator.remove();
+            
+            const botMessage = { sender: 'bot', text: aiResponse, role: 'assistant' };
+            chat.messages.push(botMessage);
+            appendMessage(aiResponse, 'bot');
+            
+            saveChatsToLocalStorage(); 
+
+        } catch (error) {
+            typingIndicator.remove();
+            console.error("Erreur API Ollama:", error);
+            
+            if (error instanceof TypeError && error.message.includes('NetworkError')) {
+                const corsErrorMessage = `<strong>Erreur de connexion (CORS) !</strong><br>Votre serveur Ollama n'est pas configuré pour accepter les requêtes web. <br><br><strong>Solution :</strong> Ajoutez la variable d'environnement <strong>OLLAMA_ORIGINS="*"</strong> à la configuration de votre service Ollama.`;
+                appendMessage(corsErrorMessage, 'bot', false, true);
+            } else {
+                appendMessage(`Désolé, une erreur est survenue: ${error.message}`, 'bot', false, true);
+            }
+
+        } finally {
+            submitButton.disabled = false;
+            chatInput.focus();
+        }
+    }
+
+    // --- NOUVEAU: Exécution de code dans un Web Worker ---
+    function executeCodeInWorker(code, outputContainer) {
+        outputContainer.innerHTML = 'Exécution en cours...';
+        
+        const workerCode = `
+            // Redéfinir console.log pour capturer les sorties
+            const logs = [];
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+
+            console.log = (...args) => {
+                logs.push({type: 'log', data: args.map(arg => JSON.stringify(arg, null, 2)).join(' ')});
+                originalLog.apply(console, args);
+            };
+            console.error = (...args) => {
+                logs.push({type: 'error', data: args.map(arg => JSON.stringify(arg, null, 2)).join(' ')});
+                originalError.apply(console, args);
+            };
+            console.warn = (...args) => {
+                logs.push({type: 'warn', data: args.map(arg => JSON.stringify(arg, null, 2)).join(' ')});
+                originalWarn.apply(console, args);
+            };
+
+            self.onmessage = (event) => {
+                try {
+                    // new Function() est plus sûr que eval() car il ne pollue pas le scope global du worker
+                    const result = new Function(event.data)();
+                    if (result !== undefined) {
+                       logs.push({type: 'return', data: 'Valeur de retour: ' + JSON.stringify(result, null, 2)});
+                    }
+                } catch (e) {
+                    logs.push({type: 'error', data: e.name + ': ' + e.message});
+                } finally {
+                    self.postMessage(logs);
+                }
+            };
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        worker.onmessage = (event) => {
+            const logs = event.data;
+            if (logs.length === 0) {
+                 outputContainer.innerHTML = 'Exécution terminée. Aucune sortie console.';
+            } else {
+                outputContainer.innerHTML = logs.map(log => {
+                    const sanitizedData = log.data.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    return `<span class="${log.type === 'error' ? 'error' : ''}">${sanitizedData}</span>`;
+                }).join('<br>');
+            }
+            worker.terminate();
+        };
+        
+        worker.onerror = (error) => {
+             outputContainer.innerHTML = `<span class="error">Erreur du Worker: ${error.message}</span>`;
+             worker.terminate();
+        };
+
+        worker.postMessage(code);
+    }
+
+
+    // MODIFICATION: Mise à jour pour gérer le bouton d'exécution
+    function formatBotResponse(text, currentProfileId) {
+        const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = codeBlockRegex.exec(text)) !== null) {
+            const language = match[1].toLowerCase();
+            const codeContent = match[2]; 
+
+            const precedingText = text.substring(lastIndex, match.index);
+            if (precedingText) {
+                parts.push({ type: 'text', content: precedingText });
+            }
+
+            parts.push({ type: 'code', content: codeContent, language: language });
+            lastIndex = match.index + match[0].length;
+        }
+
+        const remainingText = text.substring(lastIndex);
+        if (remainingText) {
+            parts.push({ type: 'text', content: remainingText });
+        }
+        
+        let finalHtml = '';
+        parts.forEach(part => {
+             if (part.type === 'code') {
+                const codeId = `code-${crypto.randomUUID()}`;
+                
+                const showExecuteButton = currentProfileId === 'programmer' && (part.language === 'js' || part.language === 'javascript' || part.language === '');
+
+                let headerHtml = `
+                    <div class="code-block-header">
+                        <span>${part.language || 'Code'}</span>`;
+
+                if (showExecuteButton) {
+                    headerHtml += `<button class="execute-button" data-code-id="${codeId}">
+                                     <span class="material-icons text-base">play_arrow</span> Exécuter
+                                   </button>`;
+                }
+
+                headerHtml += `</div>`;
+                
+                finalHtml += `<div class="code-block-wrapper">
+                                ${headerHtml}
+                                <pre id="${codeId}" class="code-block">${part.content.trim()}</pre>
+                              </div>`;
+
+             } else {
+                let formattedText = part.content;
+                formattedText = formattedText.replace(/\*(.*?)\*/g, '<strong>$1</strong>'); 
+                formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<em>$1</em>');
+                formattedText = formattedText.replace(/(\r\n|\n|\r)/gm, "<br>");
+                finalHtml += formattedText;
+             }
+        });
+        
+        return finalHtml;
+    }
+
+
+    function appendMessage(text, sender, isTyping = false, isError = false, shouldScroll = true) {
+        const messageContainer = document.createElement('div');
+        messageContainer.className = `w-full max-w-3xl mx-auto flex gap-3 mb-6 chat-message ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+        
+        // MODIFICATION: Ajout de data-profile-id pour le contexte
+        const activeChat = getActiveChat();
+        if (activeChat) {
+             messageContainer.setAttribute('data-profile-id', activeChat.profileId);
+        }
+
+        const messageBubble = document.createElement('div');
+        let bubbleClasses = sender === 'user' 
+            ? 'bg-indigo-500 text-white rounded-3xl rounded-br-lg shadow-lg' 
+            : 'bg-gray-700 text-gray-200 rounded-3xl rounded-tl-lg shadow-lg';
+        
+        messageBubble.className = `p-4 max-w-lg ${bubbleClasses}`;
+        
+        if (isError) {
+             messageBubble.className = `p-4 max-w-lg bg-red-800 text-white rounded-xl shadow-lg`;
+        }
+        
+        if (isTyping) {
+            messageBubble.innerHTML = `<div class="flex items-center justify-center">
+                    <div class="w-2 h-2 bg-indigo-300 rounded-full animate-pulse mr-1"></div>
+                    <div class="w-2 h-2 bg-indigo-300 rounded-full animate-pulse mr-1" style="animation-delay: 0.2s;"></div>
+                    <div class="w-2 h-2 bg-indigo-300 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div>
+                </div>`;
+        } else {
+            if (sender === 'bot') {
+                 // MODIFICATION: Passer l'ID du profil actif
+                 messageBubble.innerHTML = formatBotResponse(text, activeChat ? activeChat.profileId : 'general');
+            } else {
+                let formattedText = text.replace(/(\r\n|\n|\r)/gm, "<br>");
+                messageBubble.innerHTML = formattedText;
+            }
+        }
+
+        messageContainer.appendChild(messageBubble);
+
+        if (sender === 'bot' && !isTyping && !isError) {
+            const copyButton = document.createElement('button');
+            copyButton.className = 'self-start p-2 mt-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors';
+            copyButton.innerHTML = `<span class="material-icons text-base">content_copy</span>`;
+            copyButton.addEventListener('click', () => {
+                navigator.clipboard.writeText(text).then(() => {
+                    copyButton.innerHTML = `<span class="material-icons text-base text-green-400">check</span>`;
+                    setTimeout(() => {
+                        copyButton.innerHTML = `<span class="material-icons text-base">content_copy</span>`;
+                    }, 2000);
+                });
+            });
+            messageContainer.appendChild(copyButton);
+        }
+
+        chatContainer.appendChild(messageContainer);
+        
+        // NOUVEAU: Attacher les listeners aux boutons d'exécution
+        messageContainer.querySelectorAll('.execute-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const codeId = button.getAttribute('data-code-id');
+                const codeElement = document.getElementById(codeId);
+                const codeWrapper = codeElement.closest('.code-block-wrapper');
+
+                if (codeElement && codeWrapper) {
+                    let outputDiv = codeWrapper.querySelector('.execution-output');
+                    if (!outputDiv) {
+                        outputDiv = document.createElement('div');
+                        outputDiv.className = 'execution-output';
+                        codeWrapper.appendChild(outputDiv);
+                    }
+                    executeCodeInWorker(codeElement.textContent, outputDiv);
+                }
+            });
+        });
+
+        if (shouldScroll) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        return messageContainer;
+    }
+
+    // --- Initialisation ---
+    loadChatsFromLocalStorage();
+
+</script>
+
+</body>
+</html>
